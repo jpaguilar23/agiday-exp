@@ -1,0 +1,23 @@
+# ============================================================
+#  .gitignore — Archivos que NO se suben a GitHub
+# ============================================================
+
+# Variables de entorno — NUNCA subir al repo
+backend/.env
+
+# Entorno virtual de Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# Dependencias de Node
+frontend/node_modules/
+frontend/dist/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/settings.json
