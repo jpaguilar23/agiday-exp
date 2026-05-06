@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import verificar_conexion
-from routers import registro, reportes
+from routers import registro, reportes, auth, admin
 
 # ── Crear la app ─────────────────────────────────────────────
 app = FastAPI(
@@ -27,8 +27,10 @@ app.add_middleware(
 )
 
 # ── Registrar los routers ────────────────────────────────────
+app.include_router(auth.router)
 app.include_router(registro.router)
 app.include_router(reportes.router)
+app.include_router(admin.router)
 
 # ── Evento al arrancar ───────────────────────────────────────
 @app.on_event("startup")
