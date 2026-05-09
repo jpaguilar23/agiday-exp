@@ -48,10 +48,13 @@ export default function BalanceMensual() {
             <XAxis dataKey="mes_nombre" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${v}`} />
             <Tooltip formatter={(v) => euros(v)} />
-            <Legend />
-            <Bar dataKey="ingreso_neto"        name="Ingreso neto"   fill="#1B4D3E" radius={[4,4,0,0]} />
-            <Bar dataKey="gastos_operativos"   name="Gastos op."     fill="#F5A623" radius={[4,4,0,0]} />
+            <Legend/>
+            
             <Bar dataKey="balance_mensual_neto" name="Balance neto"  fill="#2D7A4F" radius={[4,4,0,0]} />
+            {/* <Bar dataKey="ingreso_neto"        name="Ingreso neto"   fill="#1B4D3E" radius={[4,4,0,0]} /> */}
+            <Bar dataKey="gastos_operativos"   name="Gastos op."     fill="#F5A623" radius={[4,4,0,0]} />
+            {/* <Bar dataKey="balance_mensual_neto" name="Balance neto"  fill="#2D7A4F" radius={[4,4,0,0]} /> */}
+            <Bar dataKey="ingreso_neto"        name="Ingreso neto"   fill="#1B4D3E" radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

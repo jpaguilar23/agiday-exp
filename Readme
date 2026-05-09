@@ -1,0 +1,54 @@
+# Agiday — Sistema de Gestión de Tours
+
+Panel administrativo para la gestión operativa de Agiday Experience Marketing.
+
+## Stack
+
+- **Frontend:** React + Vite + Recharts
+- **Backend:** FastAPI (Python)
+- **Base de datos:** PostgreSQL
+- **Autenticación:** JWT con bcrypt
+
+## Estructura del proyecto
+
+```
+agiday-system/
+├── backend/        → API en FastAPI
+├── frontend/       → Interfaz en React
+├── database/       → Scripts SQL para crear la BD
+└── .gitignore
+```
+
+## Instalación
+
+### 1. Base de datos
+Ejecutar los scripts en DBeaver en este orden:
+```
+database/01_tablas.sql
+database/02_indices.sql
+database/03_vistas.sql
+database/04_triggers.sql
+database/05_usuarios.sql
+database/06_datos_iniciales.sql
+```
+
+### 2. Backend
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate       # Windows
+pip install -r requirements.txt
+
+# Crear archivo .env con las variables de conexión
+# (ver .env.example)
+
+uvicorn main:app --reload
+```
+
+### 3. Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
