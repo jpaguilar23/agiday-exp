@@ -9,13 +9,14 @@ from sqlalchemy import text
 from database import get_db
 from models import RegistroCreate, RegistroResponse
 from services.calculos import calcular_costos_viaje
+from routers.auth import require_auth
 
 router = APIRouter(prefix="/registro", tags=["Registro"])
 
 
 # ── POST /registro — Crear un nuevo viaje ───────────────────
 @router.post("/", response_model=RegistroResponse)
-def crear_registro(datos: RegistroCreate, db: Session = Depends(get_db)):
+def crear_registro(datos: RegistroCreate, usuario=Depends(require_auth), db: Session = Depends(get_db)):
     """
     Registra un nuevo viaje. El frontend manda los datos crudos
     (pasajeros, vehículo, conductor, etc.) y este endpoint
@@ -86,6 +87,41 @@ def crear_registro(datos: RegistroCreate, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── GET /registro/catalogos/tours ───────────────────────────
+@router.get("/catalogos/tours")
+def get_tours(usuario = Depends(require_auth), db: Session = Depends(get_db)):
+    print("✅ Tours solicitados por:", usuario)  # ← debug
+    resultado = db.execute(text(
+        "SELECT id_tour, nombre_tour, distancia_km, activo FROM tours ORDER BY nombre_tour"
+    )).mappings().all()
+    print("✅ Tours encontrados:", len(list(resultado)))  # ← debug
+    return [dict(r) for r in resultado]
+
+# ── GET /registro/catalogos/vehiculos ───────────────────────
+@router.get("/catalogos/vehiculos")
+def get_vehiculos(usuario=Depends(require_auth), db: Session = Depends(get_db)):
+    resultado = db.execute(text(
+        "SELECT id_vehiculo, nombre_vehiculo, activo FROM vehiculos ORDER BY nombre_vehiculo"
+    )).mappings().all()
+    return [dict(r) for r in resultado]
+
+# ── GET /registro/catalogos/conductores ─────────────────────
+@router.get("/catalogos/conductores")
+def get_conductores(usuario=Depends(require_auth), db: Session = Depends(get_db)):
+    resultado = db.execute(text(
+        "SELECT id_conductor, nombre, activo FROM conductores ORDER BY nombre"
+    )).mappings().all()
+    return [dict(r) for r in resultado]
+
+# ── GET /registro/catalogos/plataformas ─────────────────────
+@router.get("/catalogos/plataformas")
+def get_plataformas(usuario=Depends(require_auth), db: Session = Depends(get_db)):
+    resultado = db.execute(text(
+        "SELECT id_plataforma, nombre, activa FROM plataformas ORDER BY nombre"
+    )).mappings().all()
+    return [dict(r) for r in resultado]
 
 
 # ── GET /registro — Listar viajes con filtros ───────────────

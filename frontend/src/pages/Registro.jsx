@@ -2,34 +2,14 @@
 //  pages/Registro.jsx — Formulario para registrar un viaje
 // ============================================================
 
-import { useState } from 'react'
-import { crearRegistro } from '../services/api'
+import { useState, useEffect } from 'react'
+import { crearRegistro, getTours, getVehiculos, getConductores, getPlataformas } from '../services/api'
 
 const hoy = () => new Date().toISOString().slice(0, 10)
 
-const VEHICULOS = [
-  { id: 1, nombre: 'Coche Mercedes' },
-  { id: 2, nombre: 'Furgoneta UV Mercedes' },
-  { id: 3, nombre: 'Camioneta V6' },
-  { id: 4, nombre: 'Furgoneta Hyundai (diaria)' },
-]
-
-const CONDUCTORES = [
-  { id: 1, nombre: 'Jessi' },
-  { id: 2, nombre: 'Diego' },
-]
-
-const PLATAFORMAS = [
-  { id: 1, nombre: 'Viator' },
-  { id: 2, nombre: 'Booking' },
-  { id: 3, nombre: 'Get Your Guide' },
-  { id: 4, nombre: 'BOKUN' },
-  { id: 5, nombre: 'Venta directa' },
-]
-
 const vacio = {
   fecha:              hoy(),
-  id_tour:            1,
+  id_tour:            '',
   id_vehiculo:        '',
   id_conductor:       '',
   id_plataforma:      '',
@@ -42,10 +22,23 @@ const vacio = {
 }
 
 export default function Registro() {
-  const [form, setForm]         = useState(vacio)
-  const [enviando, setEnviando] = useState(false)
+  const [form, setForm]           = useState(vacio)
+  const [enviando, setEnviando]   = useState(false)
   const [resultado, setResultado] = useState(null)
-  const [error, setError]       = useState(null)
+  const [error, setError]         = useState(null)
+
+  // Catálogos dinámicos desde la BD
+  const [tours, setTours]             = useState([])
+  const [vehiculos, setVehiculos]     = useState([])
+  const [conductores, setConductores] = useState([])
+  const [plataformas, setPlataformas] = useState([])
+
+  useEffect(() => {
+    getTours().then(r => setTours(r.data.tours || r.data)).catch(() => {})
+    getVehiculos().then(r => setVehiculos(r.data)).catch(() => {})
+    getConductores().then(r => setConductores(r.data.conductores || r.data)).catch(() => {})
+    getPlataformas().then(r => setPlataformas(r.data)).catch(() => {})
+  }, [])
 
   const set = (campo, valor) => {
     setForm(prev => {
@@ -66,6 +59,7 @@ export default function Registro() {
     try {
       const payload = {
         ...form,
+        id_tour:            parseInt(form.id_tour),
         id_vehiculo:        parseInt(form.id_vehiculo),
         id_conductor:       parseInt(form.id_conductor),
         id_plataforma:      form.id_plataforma ? parseInt(form.id_plataforma) : null,
@@ -86,10 +80,10 @@ export default function Registro() {
 
   const euros = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
 
-  const camposValidos = form.id_vehiculo && form.id_conductor && form.cantidad_pasajeros
+  const camposValidos = form.id_tour && form.id_vehiculo && form.id_conductor && form.cantidad_pasajeros
 
   return (
-    <div style={{ maxWidth: 780, width: '100%' }}>
+    <div style={{ maxWidth: 900, width: '100%' }}>
 
       {/* Resultado exitoso */}
       {resultado && (
@@ -152,27 +146,46 @@ export default function Registro() {
           <div>
             <div style={estiloSeccion}>Datos del viaje</div>
             <div className="form-grid">
+
               <div className="form-group">
                 <label className="form-label">Fecha</label>
                 <input className="form-input" type="date"
                   value={form.fecha} onChange={e => set('fecha', e.target.value)} />
               </div>
+
+              <div className="form-group">
+                <label className="form-label">Tour</label>
+                <select className="form-select"
+                  value={form.id_tour} onChange={e => set('id_tour', e.target.value)}>
+                  <option value="">Seleccionar...</option>
+                  {tours.filter(t => t.activo).map(t =>
+                    <option key={t.id_tour} value={t.id_tour}>{t.nombre_tour}</option>
+                  )}
+                </select>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Vehículo</label>
                 <select className="form-select"
                   value={form.id_vehiculo} onChange={e => set('id_vehiculo', e.target.value)}>
                   <option value="">Seleccionar...</option>
-                  {VEHICULOS.map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
+                  {vehiculos.filter(v => v.activo).map(v =>
+                    <option key={v.id_vehiculo} value={v.id_vehiculo}>{v.nombre_vehiculo}</option>
+                  )}
                 </select>
               </div>
+
               <div className="form-group">
                 <label className="form-label">Conductor</label>
                 <select className="form-select"
                   value={form.id_conductor} onChange={e => set('id_conductor', e.target.value)}>
                   <option value="">Seleccionar...</option>
-                  {CONDUCTORES.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                  {conductores.filter(c => c.activo).map(c =>
+                    <option key={c.id_conductor} value={c.id_conductor}>{c.nombre}</option>
+                  )}
                 </select>
               </div>
+
             </div>
           </div>
 
@@ -216,14 +229,18 @@ export default function Registro() {
           <div>
             <div style={estiloSeccion}>Venta y extras</div>
             <div className="form-grid">
+
               <div className="form-group">
                 <label className="form-label">Plataforma de venta</label>
                 <select className="form-select"
                   value={form.id_plataforma} onChange={e => set('id_plataforma', e.target.value)}>
                   <option value="">Sin plataforma / Directa</option>
-                  {PLATAFORMAS.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  {plataformas.filter(p => p.activa).map(p =>
+                    <option key={p.id_plataforma} value={p.id_plataforma}>{p.nombre}</option>
+                  )}
                 </select>
               </div>
+
               <div className="form-group">
                 <label className="form-label">Km adicionales</label>
                 <input className="form-input" type="number" min="0"
@@ -231,11 +248,13 @@ export default function Registro() {
                   value={form.km_adicionales}
                   onChange={e => set('km_adicionales', e.target.value)} />
               </div>
+
               <div className="form-group">
                 <label className="form-label">Notas</label>
                 <input className="form-input" type="text" placeholder="Opcional..."
                   value={form.notas} onChange={e => set('notas', e.target.value)} />
               </div>
+
             </div>
           </div>
 
@@ -248,7 +267,7 @@ export default function Registro() {
             borderTop: '1px solid var(--gris-borde)',
           }}>
             <span style={{ fontSize: 12, color: 'var(--gris-texto)' }}>
-              {!camposValidos ? '⚠ Completá vehículo, conductor y pasajeros' : '✓ Listo para registrar'}
+              {!camposValidos ? '⚠ Completá tour, vehículo, conductor y pasajeros' : '✓ Listo para registrar'}
             </span>
             <button
               className="btn btn-primary"
@@ -256,7 +275,7 @@ export default function Registro() {
               disabled={enviando || !camposValidos}
               style={{ padding: '11px 28px', fontSize: 14 }}
             >
-              {enviando ? '⏳ Registrando...' : '✅ Registrar viaje'}
+              {enviando ? 'Registrando...' : 'Registrar viaje'}
             </button>
           </div>
 

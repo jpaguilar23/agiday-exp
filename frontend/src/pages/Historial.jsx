@@ -208,7 +208,7 @@ export default function Historial() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Mes y Año */}
-            // ✅ Después — mes fijo + año dinámico separados
+            {/* ✅ Después — mes fijo + año dinámico separados */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
               <ChipSelect label="Mes" opciones={MESES.map((m, i) => ({ valor: i + 1, label: m }))}
                 seleccionados={filtros.meses} onChange={v => setF('meses', v)} />
