@@ -3,11 +3,15 @@
 //  CRUD para todas las tablas del sistema
 // ============================================================
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   adminGetVehiculos, adminCrearVehiculo, adminEditarVehiculo, adminEliminarVehiculo,
   adminGetConductores, adminCrearConductor, adminEditarConductor, adminEliminarConductor,
   adminGetTours, adminCrearTour, adminEditarTour, adminEliminarTour,
+  adminCrearConfig, adminEditarConfig,
+  adminGetTarifasPorTour, adminCrearTarifa, adminEditarTarifa, adminEliminarTarifa,
+  adminGetCostosVehiculoTourPorTour, adminCrearCostoVehiculoTour,
+  adminEditarCostoVehiculoTour, adminEliminarCostoVehiculoTour,
   adminGetPlataformas, adminCrearPlataforma, adminEditarPlataforma, adminEliminarPlataforma,
   adminGetCostos, adminCrearCosto, adminEditarCosto, adminEliminarCosto,
   adminGetUsuarios, adminCrearUsuario, adminEditarUsuario, adminEliminarUsuario
@@ -373,29 +377,58 @@ function SeccionCostos() {
 
 
 // ============================================================
-// SECCIÓN TOURS
+// SECCIÓN TOURS — versión completa
+//   Tour → Configuración (costos operativos)
+//        → Tarifas por plataforma (precio + comisión)
+//        → Combustible estimado por vehículo
 // ============================================================
+
+const tourVacio = { nombre_tour: '', distancia_km: '', activo: true, tiene_degustacion: false }
+
+const configVacia = {
+  costo_degustacion: 0, costo_agua_entradas: 0, parking_fijo: 0,
+  lavacar_fijo: 0, viaticos_fijo: 0, tickets_por_persona: 0, peajes: 0,
+  vigente_desde: new Date().toISOString().slice(0, 10),
+}
+
 function SeccionTours() {
-  const [datos, setDatos]   = useState({ tours: [], configuraciones: [] })
-  const [form, setForm]     = useState({ nombre_tour: '', distancia_km: '', activo: true })
-  const [editId, setEditId] = useState(null)
+  const [datos, setDatos]     = useState({ tours: [], configuraciones: [] })
+  const [plataformas, setPlataformas] = useState([])
+  const [vehiculos, setVehiculos]     = useState([])
+
+  const [form, setForm]       = useState(tourVacio)
+  const [editId, setEditId]   = useState(null)
   const [mostrarForm, setMostrarForm] = useState(false)
 
+  // Tour expandido para ver/editar su config, tarifas y combustible
+  const [tourAbierto, setTourAbierto] = useState(null)
+
   const cargar = () => adminGetTours().then(r => setDatos(r.data))
-  useEffect(() => { cargar() }, [])
+
+  useEffect(() => {
+    cargar()
+    adminGetPlataformas().then(r => setPlataformas(r.data))
+    adminGetVehiculos().then(r => setVehiculos(r.data))
+  }, [])
 
   const guardar = async () => {
     const payload = { ...form, distancia_km: parseFloat(form.distancia_km) }
     if (editId) await adminEditarTour(editId, payload)
     else        await adminCrearTour(payload)
-    setForm({ nombre_tour: '', distancia_km: '', activo: true }); setEditId(null); setMostrarForm(false); cargar()
+    setForm(tourVacio); setEditId(null); setMostrarForm(false); cargar()
   }
+
+  const configDeTour = (id_tour) =>
+    datos.configuraciones.find(c => c.id_tour === id_tour && !c.vigente_hasta)
 
   return (
     <div className="card fade-up">
       <div className="card-header">
-        <div className="card-titulo">Tours</div>
-        <button className="btn btn-primary" onClick={() => { setForm({ nombre_tour: '', distancia_km: '', activo: true }); setEditId(null); setMostrarForm(true) }}>+ Agregar</button>
+        <div>
+          <div className="card-titulo">Tours</div>
+          <div className="card-subtitulo">Crear, configurar costos, tarifas por plataforma y combustible — todo desde aquí</div>
+        </div>
+        <button className="btn btn-primary" onClick={() => { setForm(tourVacio); setEditId(null); setMostrarForm(true) }}>+ Agregar tour</button>
       </div>
 
       {mostrarForm && (
@@ -411,26 +444,307 @@ function SeccionTours() {
               <input className="form-input" type="number" value={form.distancia_km}
                 onChange={e => setForm(f => ({ ...f, distancia_km: e.target.value }))} />
             </div>
+            <div className="form-group">
+              <label className="form-label">¿Tiene degustación?</label>
+              <select className="form-select" value={form.tiene_degustacion ? 'true' : 'false'}
+                onChange={e => setForm(f => ({ ...f, tiene_degustacion: e.target.value === 'true' }))}>
+                <option value="false">No</option>
+                <option value="true">Sí</option>
+              </select>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <button className="btn btn-primary" onClick={guardar}>{editId ? '💾 Guardar' : '+ Crear'}</button>
             <button className="btn btn-outline" onClick={() => setMostrarForm(false)}>Cancelar</button>
+          </div>
+          {!editId && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--gris-texto)' }}>
+              ℹ️ Después de crear el tour, abrilo en la lista de abajo para configurar sus costos, tarifas y combustible.
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="tabla-wrapper">
+        <table>
+          <thead><tr><th></th><th>Tour</th><th>Distancia</th><th>Degustación</th><th>Config.</th><th>Activo</th><th></th></tr></thead>
+          <tbody>
+            {datos.tours.map(t => {
+              const config = configDeTour(t.id_tour)
+              const abierto = tourAbierto === t.id_tour
+              return (
+                <React.Fragment key={t.id_tour}>
+                  <tr>
+                    <td>
+                      <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => setTourAbierto(abierto ? null : t.id_tour)}>
+                        {abierto ? '▼' : '▶'}
+                      </button>
+                    </td>
+                    <td style={{ fontWeight: 500 }}>{t.nombre_tour}</td>
+                    <td>{t.distancia_km} km</td>
+                    <td><span className={`badge ${t.tiene_degustacion ? 'badge-amarillo' : 'badge-positivo'}`}>{t.tiene_degustacion ? 'Sí' : 'No'}</span></td>
+                    <td><span className={`badge ${config ? 'badge-positivo' : 'badge-negativo'}`}>{config ? 'Configurado' : 'Falta config'}</span></td>
+                    <td><span className={`badge ${t.activo ? 'badge-positivo' : 'badge-negativo'}`}>{t.activo ? 'Sí' : 'No'}</span></td>
+                    <FilaAcciones
+                      onEditar={() => { setForm({ nombre_tour: t.nombre_tour, distancia_km: t.distancia_km, activo: t.activo, tiene_degustacion: t.tiene_degustacion }); setEditId(t.id_tour); setMostrarForm(true) }}
+                      onEliminar={async () => { if (!confirm('¿Eliminar tour? Esto borra también su configuración y tarifas.')) return; await adminEliminarTour(t.id_tour); cargar() }} />
+                  </tr>
+                  {abierto && (
+                    <tr>
+                      <td colSpan={7} style={{ background: 'var(--fondo)', padding: 0 }}>
+                        <DetalleTour
+                          tour={t}
+                          config={config}
+                          plataformas={plataformas}
+                          vehiculos={vehiculos}
+                          tours={datos.tours}
+                          onConfigGuardada={cargar}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+
+// ── Detalle expandido de un tour: config + tarifas + combustible ──
+function DetalleTour({ tour, config, plataformas, vehiculos, tours, onConfigGuardada }) {
+  const [tab, setTab] = useState('config')
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[
+          ['config',  '⚙️ Configuración de costos'],
+          ['tarifas', '💵 Tarifas por plataforma'],
+          ['combustible', '⛽ Combustible por vehículo'],
+        ].map(([key, label]) => (
+          <button key={key}
+            className={`btn ${tab === key ? 'btn-primary' : 'btn-outline'}`}
+            style={{ fontSize: 12, padding: '6px 12px' }}
+            onClick={() => setTab(key)}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'config' && (
+        <ConfigTourForm tour={tour} config={config} tours={tours} onGuardado={onConfigGuardada} />
+      )}
+      {tab === 'tarifas' && (
+        <TarifasTourTabla tour={tour} plataformas={plataformas} />
+      )}
+      {tab === 'combustible' && (
+        <CombustibleTourTabla tour={tour} vehiculos={vehiculos} />
+      )}
+    </div>
+  )
+}
+
+
+// ── Sub-sección: configuración de costos operativos ──────────
+function ConfigTourForm({ tour, config, tours, onGuardado }) {
+  const [form, setForm] = useState(config ? { ...config } : configVacia)
+  const [copiarDe, setCopiarDe] = useState('')
+  const [guardando, setGuardando] = useState(false)
+
+  // El form se reinicia solo cuando cambia el id de la config (no en cada render)
+  const configId = config?.id_config ?? null
+  const [configIdAnterior, setConfigIdAnterior] = useState(configId)
+  if (configId !== configIdAnterior) {
+    setConfigIdAnterior(configId)
+    setForm(config ? { ...config } : configVacia)
+  }
+
+  const campos = [
+    ['costo_degustacion',   'Degustación €/persona'],
+    ['costo_agua_entradas', 'Agua €/persona'],
+    ['parking_fijo',        'Parking €'],
+    ['lavacar_fijo',        'Lavado €'],
+    ['viaticos_fijo',       'Viáticos €'],
+    ['tickets_por_persona', 'Tickets/entradas €/persona'],
+    ['peajes',              'Peajes €'],
+  ]
+
+  const guardar = async () => {
+    setGuardando(true)
+    const payload = {
+      id_tour: tour.id_tour,
+      vigente_desde: form.vigente_desde || new Date().toISOString().slice(0, 10),
+      vigente_hasta: null,
+      ...Object.fromEntries(campos.map(([k]) => [k, parseFloat(form[k]) || 0])),
+    }
+    try {
+      if (config) await adminEditarConfig(config.id_config, payload)
+      else        await adminCrearConfig(payload)
+      onGuardado()
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const otrosTours = tours.filter(t => t.id_tour !== tour.id_tour)
+
+  return (
+    <div>
+      {!config && (
+        <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--gris-texto)' }}>
+          Este tour no tiene configuración todavía. Completá los valores abajo o copiá la configuración de otro tour como punto de partida.
+        </div>
+      )}
+
+      <div className="form-group" style={{ marginBottom: 16, maxWidth: 320 }}>
+        <label className="form-label">Copiar valores de otro tour (opcional)</label>
+        <select className="form-select" value={copiarDe}
+          onChange={e => {
+            const idSel = e.target.value
+            setCopiarDe(idSel)
+          }}>
+          <option value="">— Elegir tour para copiar —</option>
+          {otrosTours.map(t => <option key={t.id_tour} value={t.id_tour}>{t.nombre_tour}</option>)}
+        </select>
+        <div style={{ fontSize: 11, color: 'var(--gris-texto)', marginTop: 4 }}>
+          Nota: copiá los números manualmente desde la pestaña de ese tour si necesitás los valores exactos.
+        </div>
+      </div>
+
+      <div className="form-grid">
+        {campos.map(([key, label]) => (
+          <div className="form-group" key={key}>
+            <label className="form-label">{label}</label>
+            <input className="form-input" type="number" step="0.01"
+              value={form[key] ?? 0}
+              onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />
+          </div>
+        ))}
+        <div className="form-group">
+          <label className="form-label">Vigente desde</label>
+          <input className="form-input" type="date"
+            value={form.vigente_desde || new Date().toISOString().slice(0, 10)}
+            onChange={e => setForm(f => ({ ...f, vigente_desde: e.target.value }))} />
+        </div>
+      </div>
+
+      <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={guardar} disabled={guardando}>
+        {guardando ? 'Guardando...' : config ? '💾 Guardar configuración' : '+ Crear configuración'}
+      </button>
+    </div>
+  )
+}
+
+
+// ── Sub-sección: tarifas por plataforma ───────────────────────
+function TarifasTourTabla({ tour, plataformas }) {
+  const [tarifas, setTarifas] = useState([])
+  const [form, setForm]       = useState({ id_plataforma: '', comision_pct: '', precio_con_deg: '', precio_sin_deg: '', vigente_desde: new Date().toISOString().slice(0, 10) })
+  const [editId, setEditId]   = useState(null)
+  const [mostrarForm, setMostrarForm] = useState(false)
+
+  const cargar = () => adminGetTarifasPorTour(tour.id_tour).then(r => setTarifas(r.data))
+  useEffect(() => { cargar() }, [tour.id_tour])
+
+  const guardar = async () => {
+    const payload = {
+      id_tour: tour.id_tour,
+      id_plataforma: parseInt(form.id_plataforma),
+      comision_pct: parseFloat(form.comision_pct) / 100,
+      precio_con_deg: tour.tiene_degustacion ? parseFloat(form.precio_con_deg) || null : null,
+      precio_sin_deg: parseFloat(form.precio_sin_deg),
+      vigente_desde: form.vigente_desde,
+      vigente_hasta: null,
+    }
+    if (editId) await adminEditarTarifa(editId, payload)
+    else        await adminCrearTarifa(payload)
+    setForm({ id_plataforma: '', comision_pct: '', precio_con_deg: '', precio_sin_deg: '', vigente_desde: new Date().toISOString().slice(0, 10) })
+    setEditId(null); setMostrarForm(false); cargar()
+  }
+
+  const plataformasUsadas = tarifas.map(t => t.id_plataforma)
+  const plataformasDisponibles = plataformas.filter(p => editId ? true : !plataformasUsadas.includes(p.id_plataforma))
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, color: 'var(--gris-texto)' }}>
+          Cada plataforma puede tener un precio y comisión distinto para este tour.
+        </span>
+        <button className="btn btn-primary" style={{ fontSize: 12, padding: '6px 14px' }}
+          onClick={() => { setForm({ id_plataforma: '', comision_pct: '', precio_con_deg: '', precio_sin_deg: '', vigente_desde: new Date().toISOString().slice(0, 10) }); setEditId(null); setMostrarForm(true) }}>
+          + Agregar tarifa
+        </button>
+      </div>
+
+      {mostrarForm && (
+        <div style={{ background: 'var(--blanco)', border: '1px solid var(--gris-borde)', borderRadius: 'var(--radio-sm)', padding: 16, marginBottom: 16 }}>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Plataforma</label>
+              <select className="form-select" value={form.id_plataforma}
+                onChange={e => setForm(f => ({ ...f, id_plataforma: e.target.value }))}>
+                <option value="">Seleccionar...</option>
+                {plataformasDisponibles.map(p => <option key={p.id_plataforma} value={p.id_plataforma}>{p.nombre}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Comisión %</label>
+              <input className="form-input" type="number" step="0.1" placeholder="ej: 27"
+                value={form.comision_pct} onChange={e => setForm(f => ({ ...f, comision_pct: e.target.value }))} />
+            </div>
+            {tour.tiene_degustacion && (
+              <div className="form-group">
+                <label className="form-label">Precio con degustación €</label>
+                <input className="form-input" type="number" step="0.01"
+                  value={form.precio_con_deg} onChange={e => setForm(f => ({ ...f, precio_con_deg: e.target.value }))} />
+              </div>
+            )}
+            <div className="form-group">
+              <label className="form-label">Precio {tour.tiene_degustacion ? 'sin degustación' : 'base'} €</label>
+              <input className="form-input" type="number" step="0.01"
+                value={form.precio_sin_deg} onChange={e => setForm(f => ({ ...f, precio_sin_deg: e.target.value }))} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn btn-primary" style={{ fontSize: 12 }} onClick={guardar}>{editId ? '💾 Guardar' : '+ Crear'}</button>
+            <button className="btn btn-outline" style={{ fontSize: 12 }} onClick={() => setMostrarForm(false)}>Cancelar</button>
           </div>
         </div>
       )}
 
       <div className="tabla-wrapper">
         <table>
-          <thead><tr><th>Tour</th><th>Distancia</th><th>Activo</th><th></th></tr></thead>
+          <thead><tr>
+            <th>Plataforma</th><th>Comisión</th>
+            {tour.tiene_degustacion && <th>Con deg.</th>}
+            <th>{tour.tiene_degustacion ? 'Sin deg.' : 'Precio'}</th><th></th>
+          </tr></thead>
           <tbody>
-            {datos.tours.map(t => (
-              <tr key={t.id_tour}>
-                <td>{t.nombre_tour}</td>
-                <td>{t.distancia_km} km</td>
-                <td><span className={`badge ${t.activo ? 'badge-positivo' : 'badge-negativo'}`}>{t.activo ? 'Sí' : 'No'}</span></td>
+            {tarifas.length === 0 && (
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--gris-texto)', padding: 20 }}>Sin tarifas configuradas aún</td></tr>
+            )}
+            {tarifas.map(t => (
+              <tr key={t.id_tarifa}>
+                <td style={{ fontWeight: 500 }}>{t.plataforma}</td>
+                <td>{(t.comision_pct * 100).toFixed(0)}%</td>
+                {tour.tiene_degustacion && <td>{t.precio_con_deg ? `€${t.precio_con_deg}` : '—'}</td>}
+                <td>€{t.precio_sin_deg}</td>
                 <FilaAcciones
-                  onEditar={() => { setForm({ nombre_tour: t.nombre_tour, distancia_km: t.distancia_km, activo: t.activo }); setEditId(t.id_tour); setMostrarForm(true) }}
-                  onEliminar={async () => { if (!confirm('¿Eliminar tour?')) return; await adminEliminarTour(t.id_tour); cargar() }} />
+                  onEditar={() => {
+                    setForm({
+                      id_plataforma: t.id_plataforma,
+                      comision_pct: (t.comision_pct * 100).toString(),
+                      precio_con_deg: t.precio_con_deg || '',
+                      precio_sin_deg: t.precio_sin_deg,
+                      vigente_desde: t.vigente_desde,
+                    })
+                    setEditId(t.id_tarifa); setMostrarForm(true)
+                  }}
+                  onEliminar={async () => { if (!confirm('¿Eliminar esta tarifa?')) return; await adminEliminarTarifa(t.id_tarifa); cargar() }} />
               </tr>
             ))}
           </tbody>
@@ -439,6 +753,93 @@ function SeccionTours() {
     </div>
   )
 }
+
+
+// ── Sub-sección: combustible estimado por vehículo ────────────
+function CombustibleTourTabla({ tour, vehiculos }) {
+  const [costos, setCostos] = useState([])
+  const [edicion, setEdicion] = useState({}) // { id_vehiculo: valor }
+  const [guardandoId, setGuardandoId] = useState(null)
+
+  const cargar = () => adminGetCostosVehiculoTourPorTour(tour.id_tour).then(r => setCostos(r.data))
+  useEffect(() => { cargar() }, [tour.id_tour])
+
+  const costoDe = (id_vehiculo) => costos.find(c => c.id_vehiculo === id_vehiculo)
+
+  const guardar = async (vehiculo) => {
+    const existente = costoDe(vehiculo.id_vehiculo)
+    const valor = parseFloat(edicion[vehiculo.id_vehiculo])
+    if (isNaN(valor)) return
+    setGuardandoId(vehiculo.id_vehiculo)
+    try {
+      const payload = {
+        id_tour: tour.id_tour,
+        id_vehiculo: vehiculo.id_vehiculo,
+        costo_combustible: valor,
+        vigente_desde: existente?.vigente_desde || new Date().toISOString().slice(0, 10),
+        vigente_hasta: null,
+      }
+      if (existente) await adminEditarCostoVehiculoTour(existente.id, payload)
+      else           await adminCrearCostoVehiculoTour(payload)
+      await cargar()
+      setEdicion(e => ({ ...e, [vehiculo.id_vehiculo]: undefined }))
+    } finally {
+      setGuardandoId(null)
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: 'var(--gris-texto)', marginBottom: 12 }}>
+        Combustible estimado para este tour según el vehículo. El usuario puede usarlo como referencia al registrar un viaje.
+      </div>
+      <div className="tabla-wrapper">
+        <table>
+          <thead><tr><th>Vehículo</th><th>Capacidad</th><th>Combustible estimado €</th><th></th></tr></thead>
+          <tbody>
+            {vehiculos.map(v => {
+              const existente = costoDe(v.id_vehiculo)
+              const valorActual = edicion[v.id_vehiculo] !== undefined ? edicion[v.id_vehiculo] : (existente?.costo_combustible ?? '')
+              return (
+                <tr key={v.id_vehiculo}>
+                  <td style={{ fontWeight: 500 }}>{v.nombre_vehiculo}</td>
+                  <td>{v.capacidad_max} pax</td>
+                  <td>
+                    <input className="form-input" type="number" step="0.01" style={{ width: 120 }}
+                      placeholder="Sin configurar"
+                      value={valorActual}
+                      onChange={e => setEdicion(ed => ({ ...ed, [v.id_vehiculo]: e.target.value }))} />
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-primary" style={{ fontSize: 12, padding: '4px 12px' }}
+                        disabled={guardandoId === v.id_vehiculo || edicion[v.id_vehiculo] === undefined}
+                        onClick={() => guardar(v)}>
+                        {guardandoId === v.id_vehiculo ? '...' : '💾 Guardar'}
+                      </button>
+                      {existente && (
+                        <button className="btn btn-outline" style={{ fontSize: 12, padding: '4px 10px', color: 'var(--negativo)' }}
+                          onClick={async () => {
+                            if (!confirm('¿Eliminar este costo de combustible?')) return
+                            await adminEliminarCostoVehiculoTour(existente.id)
+                            cargar()
+                          }}>
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+
 
 
 // ============================================================

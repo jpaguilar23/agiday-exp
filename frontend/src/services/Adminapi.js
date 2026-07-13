@@ -56,3 +56,17 @@ export const adminGetUsuarios     = ()      => api.get('/admin/usuarios')
 export const adminCrearUsuario    = (data)  => api.post('/admin/usuarios', data)
 export const adminEditarUsuario   = (id, d) => api.put(`/admin/usuarios/${id}`, d)
 export const adminEliminarUsuario = (id)    => api.delete(`/admin/usuarios/${id}`)
+
+// ── Tarifas por tour + plataforma ─────────────────────────────
+export const adminGetTarifas         = ()      => api.get('/admin/tarifas')
+export const adminGetTarifasPorTour  = (id)    => api.get(`/admin/tarifas/tour/${id}`)
+export const adminCrearTarifa        = (data)  => api.post('/admin/tarifas', data)
+export const adminEditarTarifa       = (id, d) => api.put(`/admin/tarifas/${id}`, d)
+export const adminEliminarTarifa     = (id)    => api.delete(`/admin/tarifas/${id}`)
+
+// ── Costos vehículo + tour (combustible estimado) ─────────────
+export const adminGetCostosVehiculoTour        = ()   => api.get('/admin/costos-vehiculo-tour')
+export const adminGetCostosVehiculoTourPorTour = (id) => api.get(`/admin/costos-vehiculo-tour/tour/${id}`)
+export const adminCrearCostoVehiculoTour        = (data)  => api.post('/admin/costos-vehiculo-tour', data)
+export const adminEditarCostoVehiculoTour       = (id, d) => api.put(`/admin/costos-vehiculo-tour/${id}`, d)
+export const adminEliminarCostoVehiculoTour     = (id)    => api.delete(`/admin/costos-vehiculo-tour/${id}`)

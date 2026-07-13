@@ -118,8 +118,15 @@ export default function Historial() {
   const opcionesConductores = useMemo(() =>
     [...new Set(datos.map(d => d.conductor).filter(Boolean))].map(v => ({ valor: v, label: v })), [datos])
 
-  const opcionesPlataformas = useMemo(() =>
-    [...new Set(datos.map(d => d.plataforma || 'Directa'))].map(v => ({ valor: v, label: v })), [datos])
+  const opcionesPlataformas = useMemo(() => {
+    const nombres = new Set()
+    datos.forEach(d => {
+      const detalle = d.plataformas_detalle || []
+      if (detalle.length === 0) nombres.add('Sin plataforma')
+      else detalle.forEach(p => nombres.add(p.nombre))
+    })
+    return [...nombres].sort().map(v => ({ valor: v, label: v }))
+  }, [datos])
 
   const opcionesAnios = useMemo(() =>
   [...new Set(datos.map(d => parseInt(d.fecha.slice(0, 4))))].sort().reverse()
@@ -135,8 +142,10 @@ export default function Historial() {
       if (filtros.tours.length       && !filtros.tours.includes(d.nombre_tour))                return false
       if (filtros.vehiculos.length   && !filtros.vehiculos.includes(d.nombre_vehiculo))        return false
       if (filtros.conductores.length && !filtros.conductores.includes(d.conductor))            return false
-      const plat = d.plataforma || 'Directa'
-      if (filtros.plataformas.length && !filtros.plataformas.includes(plat))                   return false
+      const platNombres = (d.plataformas_detalle && d.plataformas_detalle.length > 0)
+        ? d.plataformas_detalle.map(p => p.nombre)
+        : ['Sin plataforma']
+      if (filtros.plataformas.length && !filtros.plataformas.some(p => platNombres.includes(p))) return false
       if (filtros.paxMin !== ''    && d.cantidad_pasajeros  < Number(filtros.paxMin))          return false
       if (filtros.paxMax !== ''    && d.cantidad_pasajeros  > Number(filtros.paxMax))          return false
       if (filtros.conDegMin !== '' && d.pasajeros_con_deg   < Number(filtros.conDegMin))       return false
@@ -304,7 +313,17 @@ export default function Historial() {
                     <td>{d.nombre_vehiculo}</td>
                     <td>{d.conductor || '—'}</td>
                     <td>
-                      <span className="badge badge-amarillo">{d.plataforma || 'Directa'}</span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {(d.plataformas_detalle && d.plataformas_detalle.length > 0)
+                          ? d.plataformas_detalle.map(p => (
+                              <span key={p.id_plataforma} className="badge badge-amarillo"
+                                title={`${p.cantidad_pax} pax`}>
+                                {p.nombre} ({p.cantidad_pax})
+                              </span>
+                            ))
+                          : <span className="badge badge-amarillo">Sin plataforma</span>
+                        }
+                      </div>
                     </td>
                     <td>{d.cantidad_pasajeros}</td>
                     <td>{d.pasajeros_con_deg}</td>

@@ -11,23 +11,29 @@ export function AuthProvider({ children }) {
 
   // Configurar axios solo una vez al montar, de forma segura
   useEffect(() => {
+    const interceptor = axios.interceptors.request.use(config => {
     const token = localStorage.getItem('agiday_token')
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      config.headers['Authorization'] = `Bearer ${token}`
     }
-  }, [])
+    return config
+  })
+  return () => {
+    axios.interceptors.request.eject(interceptor)
+  }
+}, [])
 
   const login = (token, userData) => {
     localStorage.setItem('agiday_token', token)
     localStorage.setItem('agiday_usuario', JSON.stringify(userData))
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+   
     setUsuario(userData)
   }
 
   const logout = () => {
     localStorage.removeItem('agiday_token')
     localStorage.removeItem('agiday_usuario')
-    delete axios.defaults.headers.common['Authorization']
+
     setUsuario(null)
   }
 

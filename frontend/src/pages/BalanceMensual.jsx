@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { getBalanceMensual } from '../services/api'
+import { getBalanceMensual, getAniosDisponibles } from '../services/api'
 
 const euros = (n) => `€${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`
 
@@ -12,6 +12,15 @@ export default function BalanceMensual() {
   const [datos, setDatos]       = useState([])
   const [cargando, setCargando] = useState(true)
   const [anio, setAnio]         = useState(new Date().getFullYear())
+  const [anios, setAnios]       = useState([])
+
+  useEffect(() => {
+    getAniosDisponibles().then(r => {
+      const lista = r.data.length ? r.data : [new Date().getFullYear()]
+      setAnios(lista)
+      setAnio(prev => lista.includes(prev) ? prev : lista[lista.length - 1])
+    }).catch(() => setAnios([new Date().getFullYear()]))
+  }, [])
 
   useEffect(() => {
     getBalanceMensual({ anio })
@@ -29,7 +38,7 @@ export default function BalanceMensual() {
           <label className="form-label">Año:</label>
           <select className="form-select" style={{ width: 120 }}
             value={anio} onChange={e => setAnio(e.target.value)}>
-            {[2024, 2025, 2026].map(a => <option key={a}>{a}</option>)}
+            {anios.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
       </div>
@@ -48,13 +57,14 @@ export default function BalanceMensual() {
             <XAxis dataKey="mes_nombre" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `€${v}`} />
             <Tooltip formatter={(v) => euros(v)} />
-            <Legend/>
-            
-            
-            <Bar dataKey="ingreso_neto"        name="Ingreso neto"   fill="#1B4D3E" radius={[4,4,0,0]} /> 
+            <Legend payload={[
+              { value: 'Ingreso neto',  type: 'square', color: '#1B4D3E' },
+              { value: 'Gastos op.',    type: 'square', color: '#F5A623' },
+              { value: 'Balance neto',  type: 'square', color: '#2D7A4F' },
+            ]} />
+            <Bar dataKey="balance_mensual_neto" name="Balance neto"  fill="#2D7A4F" radius={[4,4,0,0]} />
             <Bar dataKey="gastos_operativos"   name="Gastos op."     fill="#F5A623" radius={[4,4,0,0]} />
-            <Bar dataKey="balance_mensual_neto" name="Balance neto"  fill="#2D7A4F" radius={[4,4,0,0]} /> *
-            
+            <Bar dataKey="ingreso_neto"        name="Ingreso neto"   fill="#1B4D3E" radius={[4,4,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
