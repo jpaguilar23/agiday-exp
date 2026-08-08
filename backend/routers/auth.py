@@ -1,6 +1,7 @@
 # ============================================================
 #  routers/auth.py — Autenticación con JWT
 # ============================================================
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -10,12 +11,15 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 
+from dotenv import load_dotenv
 from database import get_db
+
+load_dotenv()
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 # ── Configuración JWT ────────────────────────────────────────
-SECRET_KEY  = "agiday-secret-key-cambiar-en-produccion"
+SECRET_KEY  = os.getenv("SECRET_KEY", "fallback-solo-para-desarrollo")
 ALGORITHM   = "HS256"
 EXPIRA_HORAS = 8
 
