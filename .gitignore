@@ -4,6 +4,7 @@
 
 # Variables de entorno — NUNCA subir al repo
 backend/.env
+frontend/.env
 
 # Entorno virtual de Python
 backend/venv/
